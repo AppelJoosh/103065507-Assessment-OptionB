@@ -1,6 +1,8 @@
-sklearn
-tensorflow
+scikit-learn
+tensorflow==2.15.0
 matplotlib
 numpy
 pandas
+pandas-datareader
 yahoo_fin
+yfinance
