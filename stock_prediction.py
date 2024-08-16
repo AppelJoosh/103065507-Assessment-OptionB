@@ -202,7 +202,7 @@ actual_prices = test_data[PRICE_VALUE].values
 total_dataset = pd.concat((data[PRICE_VALUE], test_data[PRICE_VALUE]), axis=0)
 
 model_inputs = total_dataset[len(total_dataset) - len(test_data) - PREDICTION_DAYS:].values
-# We need to do the above because to predict the closing price of the fisrt
+# We need to do the above because to predict the closing price of the first
 # PREDICTION_DAYS of the test period [TEST_START, TEST_END], we'll need the 
 # data from the training period
 
@@ -233,6 +233,9 @@ for x in range(PREDICTION_DAYS, len(model_inputs)):
 x_test = np.array(x_test)
 x_test = np.reshape(x_test, (x_test.shape[0], x_test.shape[1], 1))
 # TO DO: Explain the above 5 lines
+# x-PREDICTION_DAYS:x is used so that x_train is missing 60 days from its dataset which
+# can be used as a timeframe for the model to predict. It appends the entire dataset 
+# multiple times, removing one element until it finally reaches the end of the loop.
 
 predicted_prices = model.predict(x_test)
 predicted_prices = scaler.inverse_transform(predicted_prices)
