@@ -223,6 +223,10 @@ model_inputs = scaler.transform(model_inputs)
 # can use part of it for training and the rest for testing. You need to 
 # implement such a way
 
+def load_data(ds_start, ds_end, steps=50, shuffle=True, lookup_steps=1, split_by_date=True,
+                test_size=0.2, feature_columns=['adjclose', 'volume', 'open', 'high', 'low']):
+
+
 # ------------------------------------------------------------------------------
 # Make predictions on test data
 # ------------------------------------------------------------------------------
