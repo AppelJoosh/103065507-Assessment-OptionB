@@ -223,27 +223,27 @@ model_inputs = scaler.transform(model_inputs)
 # can use part of it for training and the rest for testing. You need to 
 # implement such a way
 
-def load_data(ticker, ds_start, ds_end, steps=50, shuffle=True, lookup_steps=1, split_by_date=True,
-                test_size=0.2, feature_columns=['adjclose', 'volume', 'open', 'high', 'low']):
-    # check if ticker has been loaded already
-    if isinstance(ticker, str):
-        # load from yfinance?
-        df = yf.download(ticker)
-    elif isinstance(ticker, pd.DataFrame):
-        # already loaded, use directly
-        df = ticker
-    else:
-        raise TypeError("ticker must be string or pd.DataFrame")
-
-    # contains all elements to return
-    result = {}
-    # also return dataframe itself
-    result['df'] = df.copy()
-
-    DATASET_START = ds_start
-    DATASET_END = ds_end
-
-    PREDICT_DAYS = steps
+# def load_data(ticker, ds_start, ds_end, steps=50, shuffle=True, lookup_steps=1, split_by_date=True,
+#                 test_size=0.2, feature_columns=['adjclose', 'volume', 'open', 'high', 'low']):
+#     # check if ticker has been loaded already
+#     if isinstance(ticker, str):
+#         # load from yfinance?
+#         df = yf.download(ticker)
+#     elif isinstance(ticker, pd.DataFrame):
+#         # already loaded, use directly
+#         df = ticker
+#     else:
+#         raise TypeError("ticker must be string or pd.DataFrame")
+#
+#     # contains all elements to return
+#     result = {}
+#     # also return dataframe itself
+#     result['df'] = df.copy()
+#
+#     DATASET_START = ds_start
+#     DATASET_END = ds_end
+#
+#     PREDICT_DAYS = steps
 
 
 # ------------------------------------------------------------------------------
