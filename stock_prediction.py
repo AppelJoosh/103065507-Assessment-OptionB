@@ -36,6 +36,10 @@ from sklearn import preprocessing
 from tensorflow.keras import Sequential
 from tensorflow.keras.layers import Dense, Dropout, LSTM, InputLayer
 
+# candle chart imports
+import talib
+import mplfinance as fplt
+
 # ------------------------------------------------------------------------------
 # Load Data
 # TO DO:
@@ -427,6 +431,10 @@ plt.xlabel("Time")
 plt.ylabel(f"{COMPANY} Share Price")
 plt.legend()
 plt.show()
+
+# candle stick charts
+fplt.plot(test_data, type="candle", title=f"Actual {COMPANY} Price", ylabel="$ Price", xlabel="Time")
+fplt.plot(predicted_prices, type="candle", title=f"Predicted {COMPANY} Price", ylabel="$ Price", xlabel="Time")
 
 # ------------------------------------------------------------------------------
 # Predict next day
