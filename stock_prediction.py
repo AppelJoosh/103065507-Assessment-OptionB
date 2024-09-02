@@ -18,6 +18,7 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas
 import pandas as pd
 import pandas_datareader as web
 import datetime as dt
@@ -30,6 +31,7 @@ import datetime
 # P1 specific imports for load_data()
 from sklearn.model_selection import train_test_split
 from collections import deque
+from yahoo_fin import stock_info as si
 
 from sklearn import preprocessing
 # removed ".models" from statement below
@@ -39,6 +41,7 @@ from tensorflow.keras.layers import Dense, Dropout, LSTM, InputLayer
 # candle chart imports
 import talib
 import mplfinance as fplt
+import plotly
 
 # ------------------------------------------------------------------------------
 # Load Data
@@ -50,8 +53,8 @@ import mplfinance as fplt
 # DATA_SOURCE = "yahoo"
 COMPANY = 'CBA.AX'
 
-TRAIN_START = '2020-01-01'     # Start date to read
-TRAIN_END = '2023-08-01'       # End date to read
+TRAIN_START = '2020-01-01'  # Start date to read
+TRAIN_END = '2023-08-01'  # End date to read
 
 # data = web.DataReader(COMPANY, DATA_SOURCE, TRAIN_START, TRAIN_END) # Read data using yahoo
 
@@ -75,7 +78,7 @@ PRICE_VALUE = "Close"
 scaler = preprocessing.MinMaxScaler(feature_range=(0, 1))
 # Note that, by default, feature_range=(0, 1). Thus, if you want a different 
 # feature_range (min,max) then you'll need to specify it here
-scaled_data = scaler.fit_transform(data[PRICE_VALUE].values.reshape(-1, 1)) 
+scaled_data = scaler.fit_transform(data[PRICE_VALUE].values.reshape(-1, 1))
 # Flatten and normalise the data
 # First, we reshape a 1D array(n) to 2D array(n,1)
 # We have to do that because sklearn.preprocessing.fit_transform()
@@ -101,7 +104,7 @@ y_train = []
 scaled_data = scaled_data[:, 0]  # Turn the 2D array back to a 1D array
 # Prepare the data
 for x in range(PREDICTION_DAYS, len(scaled_data)):
-    x_train.append(scaled_data[x-PREDICTION_DAYS:x])
+    x_train.append(scaled_data[x - PREDICTION_DAYS:x])
     y_train.append(scaled_data[x])
 
 # Convert them into an array
@@ -156,7 +159,7 @@ model.add(Dropout(0.2))
 model.add(LSTM(units=50))
 model.add(Dropout(0.2))
 
-model.add(Dense(units=1)) 
+model.add(Dense(units=1))
 # Prediction of the next closing value of the stock price
 
 # We compile the model by specify the parameters for the model
@@ -165,7 +168,7 @@ model.compile(optimizer='adam', loss='mean_squared_error')
 # The optimizer and loss are two important parameters when building an 
 # ANN model. Choosing a different optimizer/loss can affect the prediction
 # quality significantly. You should try other settings to learn; e.g.
-    
+
 # optimizer='rmsprop'/'sgd'/'adadelta'/...
 # loss='mean_absolute_error'/'huber_loss'/'cosine_similarity'/...
 
@@ -204,7 +207,6 @@ TEST_END = '2024-07-02'
 
 test_data = yf.download(COMPANY, TEST_START, TEST_END)
 
-
 # The above bug is the reason for the following line of code
 # test_data = test_data[1:]
 
@@ -221,6 +223,8 @@ model_inputs = model_inputs.reshape(-1, 1)
 # TO DO: Explain the above line
 
 model_inputs = scaler.transform(model_inputs)
+
+
 # We again normalize our closing price data to fit them into the range (0,1)
 # using the same scaler used above 
 # However, there may be a problem: scaler was computed on the basis of
@@ -271,7 +275,8 @@ def load_data(ticker, ds_start="2023-08-02", ds_end="2024-07-02", steps=50, scal
     # check if ticker has been loaded already
     if isinstance(ticker, str):
         # load from yfinance?
-        df = yf.download(ticker, ds_start, ds_end)
+        # no, needs yahoo_fin's stock_info to get the columns for the first assert below
+        df = si.get_data(ticker, ds_start, ds_end)
     elif isinstance(ticker, pd.DataFrame):
         # already loaded, use directly
         df = ticker
@@ -375,7 +380,8 @@ def load_data(ticker, ds_start="2023-08-02", ds_end="2024-07-02", steps=50, scal
     else:
         # split the dataset randomly
         result["X_train"], result["X_test"], result["y_train"], result["y_test"] = train_test_split(X, y,
-                                                                                test_size=test_size, shuffle=shuffle)
+                                                                                                    test_size=test_size,
+                                                                                                    shuffle=shuffle)
 
     # cleans the data then returns it
     # get the list of test set dates
@@ -398,6 +404,7 @@ def shuffle_in_unison(a, b):
     np.random.set_state(state)
     np.random.shuffle(b)
 
+
 # ------------------------------------------------------------------------------
 # Make predictions on test data
 # ------------------------------------------------------------------------------
@@ -414,6 +421,8 @@ x_test = np.reshape(x_test, (x_test.shape[0], x_test.shape[1], 1))
 
 predicted_prices = model.predict(x_test)
 predicted_prices = scaler.inverse_transform(predicted_prices)
+
+
 # Clearly, as we transform our data into the normalized range (0,1),
 # we now need to reverse this transformation 
 # ------------------------------------------------------------------------------
@@ -424,17 +433,64 @@ predicted_prices = scaler.inverse_transform(predicted_prices)
 # 3) Show chart of next few days (predicted)
 # ------------------------------------------------------------------------------
 
-plt.plot(actual_prices, color="black", label=f"Actual {COMPANY} Price")
-plt.plot(predicted_prices, color="green", label=f"Predicted {COMPANY} Price")
-plt.title(f"{COMPANY} Share Price")
-plt.xlabel("Time")
-plt.ylabel(f"{COMPANY} Share Price")
-plt.legend()
-plt.show()
+# plt.plot(actual_prices, color="black", label=f"Actual {COMPANY} Price")
+# plt.plot(predicted_prices, color="green", label=f"Predicted {COMPANY} Price")
+# plt.title(f"{COMPANY} Share Price")
+# plt.xlabel("Time")
+# plt.ylabel(f"{COMPANY} Share Price")
+# plt.legend()
+# plt.show()
 
+# task 2
 # candle stick charts
-fplt.plot(test_data, type="candle", title=f"Actual {COMPANY} Price", ylabel="$ Price", xlabel="Time")
-fplt.plot(predicted_prices, type="candle", title=f"Predicted {COMPANY} Price", ylabel="$ Price", xlabel="Time")
+def display_candle_plots(df):
+    # attempt at loading SMA stuff, datasets downloaded through yahoo_fin don't contain it, seemingly
+    # sma1 = fplt.make_addplot(task1test["test_df"]["SMA"], color="lime", width=1.5)
+    # sma2 = fplt.make_addplot(task1test["test_df"]["SMA"], type="scatter", color="purple", marker="o", alpha="0.7", markersize=50)
+    fplt.plot(df, type="candle", title=f"Actual {COMPANY} Price", ylabel="$ Price", xlabel="Time")
+    """
+        draws a plot of specified type (ohlc, line, candle, renko, pnf)
+        REQUIRES an argument of type DataFrame
+        title can be specified
+        label of Y-axis can be specified
+        label of X-axis can be specified
+        style of the plot can be specified ('binance', 'blueskies', 'brasil', 'charles', 'checkers', 
+            'classic', 'default', 'ibd', 'kenan', 'mike', 'nightclouds', 'sas', 'starsandstripes', 'yahoo')
+            can also be custom through the use of fplt.make_marketcolors() and fplt.make_mpf_style()
+        multiple plots can be added to one display. create the addplots with fplt.make_addplot(), add them to the main plot
+            with the addplot argument. typically used for technical indicators (SMA, EMA, RSI etc)
+        volume of stocks traded in a day can be seen by setting the volume argument to True
+            if volume is true, ylabel_lower can be used to give a label to it on the Y-axis
+        plots can be saved with the savefig argument by passing in a filename. Ex "cba_2023_2024.png"
+    """
+
+
+def display_boxplot(df, start_date, end_date):
+    # ensure df is a dataframe
+    assert isinstance(df, pd.DataFrame), "df is not DataFrame"
+
+    # validate start_date/end_date
+    try:
+        datetime.date.fromisoformat(start_date)
+    except ValueError:
+        raise ValueError("ds_start should be YYYY-MM-DD")
+    try:
+        datetime.date.fromisoformat(end_date)
+    except ValueError:
+        raise ValueError("ds_end should be YYYY-MM-DD")
+
+    # creates a mask between the start and end date
+    mask = (df.index > start_date) & (df.index <= end_date)
+    # creates another dataframe that is only within the date range of the mask
+    df2 = df.loc[mask]
+    df2 = df2.to_numpy()
+    print(df2)
+
+    plt.boxplot(df2[[0]])
+
+
+task1test = load_data(ticker=COMPANY)
+display_boxplot(task1test["df"], "2024-04-01", "2024-06-01")
 
 # ------------------------------------------------------------------------------
 # Predict next day
