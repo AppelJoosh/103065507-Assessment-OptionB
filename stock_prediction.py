@@ -443,11 +443,29 @@ predicted_prices = scaler.inverse_transform(predicted_prices)
 
 # task 2
 # candle stick charts
-def display_candle_plots(df):
+def display_candle_plots(df, start_date, end_date):
+    # ensure df is a dataframe
+    assert isinstance(df, pd.DataFrame), "df is not DataFrame"
+
+    # validate start_date/end_date
+    try:
+        datetime.date.fromisoformat(start_date)
+    except ValueError:
+        raise ValueError("ds_start should be YYYY-MM-DD")
+    try:
+        datetime.date.fromisoformat(end_date)
+    except ValueError:
+        raise ValueError("ds_end should be YYYY-MM-DD")
+
+    # creates a mask between the start and end date
+    mask = (df.index > start_date) & (df.index <= end_date)
+    # creates another dataframe that is only within the date range of the mask
+    df2 = df.loc[mask]
+
     # attempt at loading SMA stuff, datasets downloaded through yahoo_fin don't contain it, seemingly
     # sma1 = fplt.make_addplot(task1test["test_df"]["SMA"], color="lime", width=1.5)
     # sma2 = fplt.make_addplot(task1test["test_df"]["SMA"], type="scatter", color="purple", marker="o", alpha="0.7", markersize=50)
-    fplt.plot(df, type="candle", title=f"Actual {COMPANY} Price", ylabel="$ Price", xlabel="Time")
+    fplt.plot(df2, type="candle", title=f"Actual {COMPANY} Price from {start_date} to {end_date}", ylabel="$ Price", xlabel="Time")
     """
         draws a plot of specified type (ohlc, line, candle, renko, pnf)
         REQUIRES an argument of type DataFrame
@@ -483,14 +501,21 @@ def display_boxplot(df, start_date, end_date):
     mask = (df.index > start_date) & (df.index <= end_date)
     # creates another dataframe that is only within the date range of the mask
     df2 = df.loc[mask]
-    df2 = df2.to_numpy()
-    print(df2)
+    # df2 = df2.to_numpy()
+    # print(df2)
 
-    plt.boxplot(df2[[0]])
+    df2[["open", "high", "low", "adjclose"]].boxplot()
+    # plt.boxplot(boxplot)
+    plt.show()
+
+    # have to display separately. if displayed with the other columns, squishes them too much
+    df2[["volume"]].boxplot()
+    plt.show()
 
 
 task1test = load_data(ticker=COMPANY)
-display_boxplot(task1test["df"], "2024-04-01", "2024-06-01")
+display_candle_plots(task1test["df"], "2024-04-01", "2024-06-01")
+# display_boxplot(task1test["df"], "2024-04-01", "2024-06-01")
 
 # ------------------------------------------------------------------------------
 # Predict next day
