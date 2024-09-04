@@ -38,7 +38,7 @@ from sklearn import preprocessing
 from tensorflow.keras import Sequential
 from tensorflow.keras.layers import Dense, Dropout, LSTM, InputLayer
 
-# candle chart imports
+# task3 imports
 import talib
 import mplfinance as fplt
 import plotly
