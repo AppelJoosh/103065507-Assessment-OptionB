@@ -10,3 +10,4 @@ yfinance
 # candle plots
 ta-lib==0.4.29
 mplfinance
+plotly

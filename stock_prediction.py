@@ -18,10 +18,8 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-import pandas
 import pandas as pd
 import pandas_datareader as web
-import datetime as dt
 import tensorflow as tf
 import yfinance as yf
 
@@ -36,12 +34,13 @@ from yahoo_fin import stock_info as si
 from sklearn import preprocessing
 # removed ".models" from statement below
 from tensorflow.keras import Sequential
-from tensorflow.keras.layers import Dense, Dropout, LSTM, InputLayer
+from tensorflow.keras.layers import Dense, Dropout, LSTM, InputLayer, Bidirectional
 
-# task3 imports
+# task B.3 imports
 import talib
 import mplfinance as fplt
 import plotly
+
 
 # ------------------------------------------------------------------------------
 # Load Data
@@ -196,6 +195,37 @@ model.fit(x_train, y_train, epochs=25, batch_size=32)
 # your pre-trained model and run it on the new input for which the prediction
 # need to be made.
 
+# task B.4
+# code copied from P1
+# def create_model(sequence_length, n_features, units=256, cell=LSTM, n_layers=2, dropout=0.3,
+#                 loss="mean_absolute_error", optimizer="rmsprop", bidirectional=False):
+#     # automatically initialises the model with a sequential engine. could be worth changing, unsure
+#     model = Sequential()
+#     for i in range(n_layers):
+#         if i == 0:
+#             # first layer
+#             if bidirectional:
+#                 model.add(Bidirectional(cell(units, return_sequences=True), batch_input_shape=(None, sequence_length, n_features)))
+#             else:
+#                 model.add(cell(units, return_sequences=True, batch_input_shape=(None, sequence_length, n_features)))
+#         elif i == n_layers - 1:
+#             # last layer
+#             if bidirectional:
+#                 model.add(Bidirectional(cell(units, return_sequences=False)))
+#             else:
+#                 model.add(cell(units, return_sequences=False))
+#         else:
+#             # hidden layers
+#             if bidirectional:
+#                 model.add(Bidirectional(cell(units, return_sequences=True)))
+#             else:
+#                 model.add(cell(units, return_sequences=True))
+#         # add dropout after each layer
+#         model.add(Dropout(dropout))
+#     model.add(Dense(1, activation="linear"))
+#     model.compile(loss=loss, metrics=["mean_absolute_error"], optimizer=optimizer)
+#     return model
+
 # ------------------------------------------------------------------------------
 # Test the model accuracy on existing data
 # ------------------------------------------------------------------------------
@@ -238,10 +268,9 @@ model_inputs = scaler.transform(model_inputs)
 # can use part of it for training and the rest for testing. You need to 
 # implement such a way
 
-
 # task B.2
 def load_data(ticker, ds_start="2023-08-02", ds_end="2024-07-02", steps=50, scale=True, scale_type="minmax",
-              shuffle=True, lookup_steps=1, split_by_date=True, test_size=0.2,
+              shuffle=True, lookup_steps=1, split_by_date=True, split_by_ratio=False, test_size=0.2,
               feature_columns=['adjclose', 'volume', 'open', 'high', 'low']):
     """
         comment block taken from P1 for readability, added own parameters
@@ -250,16 +279,17 @@ def load_data(ticker, ds_start="2023-08-02", ds_end="2024-07-02", steps=50, scal
             ticker (str/pd.DataFrame): the ticker you want to load, examples include AAPL, TESL, etc.
             ds_start (str, YYYY-MM-DD format): set start date for ticker to download from. Default is 2023-08-02
             ds_end (str, YYYY-MM-DD format): set end date for ticker to download from. Default is 2024-07-02
-            steps (int): the historical sequence length (i.e window size) used to predict, default is 50
+            steps (int): the historical sequence length (i.e. window size) used to predict, default is 50
             scale (bool): whether to scale prices from 0 to 1, default is True
             scale_type (str/preprocessing.[scale type]Scaler): the scaler you want to load. Ex. MinMax, MaxAbs, Robust.
                 Default is minmax
             shuffle (bool): whether to shuffle the dataset (both training & testing), default is True
-            lookup_step (int): the future lookup step to predict, default is 1 (e.g next day)
+            lookup_step (int): the future lookup step to predict, default is 1 (e.g. next day)
             split_by_date (bool): whether we split the dataset into training/testing by date, setting it
                 to False will split datasets in a random way
             test_size (float): ratio for test data, default is 0.2 (20% testing data)
-            feature_columns (list): the list of features to use to feed into the model, default is everything grabbed from yahoo_fin
+            feature_columns (list): the list of features to use to feed into the model, default is everything grabbed
+                from yahoo_fin
         """
 
     # validate ds_start/ds_end
@@ -300,7 +330,7 @@ def load_data(ticker, ds_start="2023-08-02", ds_end="2024-07-02", steps=50, scal
     # minmax scaling
     if scale:
         column_scaler = {}
-        # this SHOULD select from different scales, or load an existing scaler)
+        # this SHOULD select from different scales, or load an existing scaler
         if isinstance(scale_type, str):
             if scale_type.lower() == "minmax":
                 scaler = preprocessing.MinMaxScaler()
@@ -362,8 +392,9 @@ def load_data(ticker, ds_start="2023-08-02", ds_end="2024-07-02", steps=50, scal
     X = np.array(X)
     y = np.array(y)
 
-    # checks if split_by_date in args is true
+    # checks if split_by_date or split_by_ratio in args is true
     # need to find a way to pass in specific dates, code doesn't seem to use them?
+    # ideally if both are true, it'll skip over split_by_ratio
     if split_by_date:
         # split the dataset into training & testing sets by date (not randomly splitting)
         train_samples = int((1 - test_size) * len(X))
@@ -371,6 +402,20 @@ def load_data(ticker, ds_start="2023-08-02", ds_end="2024-07-02", steps=50, scal
         result["y_train"] = y[:train_samples]
         result["X_test"] = X[train_samples:]
         result["y_test"] = y[train_samples:]
+        if shuffle:
+            # shuffle the datasets for training (if shuffle parameter is set)
+            # shuffle_in_unison() is a method from P1 which shuffles two datasets randomly with a random state
+            # shuffle_in_unison() put below load_data()
+            shuffle_in_unison(result["X_train"], result["y_train"])
+            shuffle_in_unison(result["X_test"], result["y_test"])
+    elif split_by_ratio:
+        X = pd.DataFrame(X)
+        y = pd.DataFrame(y)
+        # split the dataset by a ratio
+        result["X_train"] = X.sample(frac=1-test_size, random_state=40)
+        result["y_train"] = y.sample(frac=1-test_size, random_state=40)
+        result["X_test"] = X.drop(result["X_train"].index)
+        result["y_test"] = y.drop(result["y_train"].index)
         if shuffle:
             # shuffle the datasets for training (if shuffle parameter is set)
             # shuffle_in_unison() is a method from P1 which shuffles two datasets randomly with a random state
@@ -464,8 +509,10 @@ def display_candle_plots(df, start_date, end_date):
 
     # attempt at loading SMA stuff, datasets downloaded through yahoo_fin don't contain it, seemingly
     # sma1 = fplt.make_addplot(task1test["test_df"]["SMA"], color="lime", width=1.5)
-    # sma2 = fplt.make_addplot(task1test["test_df"]["SMA"], type="scatter", color="purple", marker="o", alpha="0.7", markersize=50)
-    fplt.plot(df2, type="candle", title=f"Actual {COMPANY} Price from {start_date} to {end_date}", ylabel="$ Price", xlabel="Time")
+    # sma2 = fplt.make_addplot(task1test["test_df"]["SMA"], type="scatter", color="purple", marker="o", alpha="0.7",
+    #   markersize=50)
+    fplt.plot(df2, type="candle", title=f"Actual {COMPANY} Price from {start_date} to {end_date}",
+              ylabel="$ Price", xlabel="Time")
     """
         draws a plot of specified type (ohlc, line, candle, renko, pnf)
         REQUIRES an argument of type DataFrame
@@ -475,8 +522,9 @@ def display_candle_plots(df, start_date, end_date):
         style of the plot can be specified ('binance', 'blueskies', 'brasil', 'charles', 'checkers', 
             'classic', 'default', 'ibd', 'kenan', 'mike', 'nightclouds', 'sas', 'starsandstripes', 'yahoo')
             can also be custom through the use of fplt.make_marketcolors() and fplt.make_mpf_style()
-        multiple plots can be added to one display. create the addplots with fplt.make_addplot(), add them to the main plot
-            with the addplot argument. typically used for technical indicators (SMA, EMA, RSI etc)
+        multiple plots can be added to one display. create the addplots with fplt.make_addplot(), 
+            add them to the main plot with the addplot argument. typically 
+            used for technical indicators (SMA, EMA, RSI etc)
         volume of stocks traded in a day can be seen by setting the volume argument to True
             if volume is true, ylabel_lower can be used to give a label to it on the Y-axis
         plots can be saved with the savefig argument by passing in a filename. Ex "cba_2023_2024.png"
@@ -513,9 +561,10 @@ def display_boxplot(df, start_date, end_date):
     plt.show()
 
 
-task1test = load_data(ticker=COMPANY)
-display_candle_plots(task1test["df"], "2024-04-01", "2024-06-01")
-# display_boxplot(task1test["df"], "2024-04-01", "2024-06-01")
+task1test = load_data(ticker=COMPANY, split_by_ratio=True)
+print(task1test)
+display_candle_plots(task1test["df"], "2024-01-01", "2024-03-01")
+display_boxplot(task1test["df"], "2024-01-01", "2024-03-01")
 
 # ------------------------------------------------------------------------------
 # Predict next day
