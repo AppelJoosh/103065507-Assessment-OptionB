@@ -34,7 +34,7 @@ from yahoo_fin import stock_info as si
 from sklearn import preprocessing
 # removed ".models" from statement below
 from tensorflow.keras import Sequential
-from tensorflow.keras.layers import Dense, Dropout, LSTM, InputLayer, Bidirectional
+from tensorflow.keras.layers import Dense, Dropout, LSTM, SimpleRNN as RNN, GRU, InputLayer, Bidirectional
 
 # task B.3 imports
 import talib
@@ -123,11 +123,11 @@ x_train = np.reshape(x_train, (x_train.shape[0], x_train.shape[1], 1))
 # If not, save the data into a directory
 # 2) Change the model to increase accuracy?
 # ------------------------------------------------------------------------------
-model = Sequential()  # Basic neural network
+#model = Sequential()  # Basic neural network
 # See: https://www.tensorflow.org/api_docs/python/tf/keras/Sequential
 # for some useful examples
 
-model.add(LSTM(units=50, return_sequences=True, input_shape=(x_train.shape[1], 1)))
+#model.add(LSTM(units=50, return_sequences=True, input_shape=(x_train.shape[1], 1)))
 # This is our first hidden layer which also specifies an input layer.
 # That's why we specify the input shape for this layer; 
 # i.e. the format of each training example
@@ -145,25 +145,25 @@ model.add(LSTM(units=50, return_sequences=True, input_shape=(x_train.shape[1], 1
 # This is one of the parameters you want to play with to see what number
 # of units will give you better prediction quality (for your problem)
 
-model.add(Dropout(0.2))
+#model.add(Dropout(0.2))
 # The Dropout layer randomly sets input units to 0 with a frequency of 
 # rate (= 0.2 above) at each step during training time, which helps 
 # prevent overfitting (one of the major problems of ML). 
 
-model.add(LSTM(units=50, return_sequences=True))
+#model.add(LSTM(units=50, return_sequences=True))
 # More on Stacked LSTM:
 # https://machinelearningmastery.com/stacked-long-short-term-memory-networks/
 
-model.add(Dropout(0.2))
-model.add(LSTM(units=50))
-model.add(Dropout(0.2))
-
-model.add(Dense(units=1))
+# model.add(Dropout(0.2))
+# model.add(LSTM(units=50))
+# model.add(Dropout(0.2))
+#
+# model.add(Dense(units=1))
 # Prediction of the next closing value of the stock price
 
 # We compile the model by specify the parameters for the model
 # See lecture Week 6 (COS30018)
-model.compile(optimizer='adam', loss='mean_squared_error')
+#model.compile(optimizer='adam', loss='mean_squared_error')
 # The optimizer and loss are two important parameters when building an 
 # ANN model. Choosing a different optimizer/loss can affect the prediction
 # quality significantly. You should try other settings to learn; e.g.
@@ -173,7 +173,7 @@ model.compile(optimizer='adam', loss='mean_squared_error')
 
 # Now we are going to train this model with our training data 
 # (x_train, y_train)
-model.fit(x_train, y_train, epochs=25, batch_size=32)
+#model.fit(x_train, y_train, epochs=25, batch_size=32)
 # Other parameters to consider: How many rounds(epochs) are we going to 
 # train our model? Typically, the more, the better, but be careful about
 # overfitting!
@@ -197,34 +197,70 @@ model.fit(x_train, y_train, epochs=25, batch_size=32)
 
 # task B.4
 # code copied from P1
-# def create_model(sequence_length, n_features, units=256, cell=LSTM, n_layers=2, dropout=0.3,
-#                 loss="mean_absolute_error", optimizer="rmsprop", bidirectional=False):
-#     # automatically initialises the model with a sequential engine. could be worth changing, unsure
-#     model = Sequential()
-#     for i in range(n_layers):
-#         if i == 0:
-#             # first layer
-#             if bidirectional:
-#                 model.add(Bidirectional(cell(units, return_sequences=True), batch_input_shape=(None, sequence_length, n_features)))
-#             else:
-#                 model.add(cell(units, return_sequences=True, batch_input_shape=(None, sequence_length, n_features)))
-#         elif i == n_layers - 1:
-#             # last layer
-#             if bidirectional:
-#                 model.add(Bidirectional(cell(units, return_sequences=False)))
-#             else:
-#                 model.add(cell(units, return_sequences=False))
-#         else:
-#             # hidden layers
-#             if bidirectional:
-#                 model.add(Bidirectional(cell(units, return_sequences=True)))
-#             else:
-#                 model.add(cell(units, return_sequences=True))
-#         # add dropout after each layer
-#         model.add(Dropout(dropout))
-#     model.add(Dense(1, activation="linear"))
-#     model.compile(loss=loss, metrics=["mean_absolute_error"], optimizer=optimizer)
-#     return model
+def create_model(x_train, y_train, sequence_length, n_features, units=256, cell=LSTM, n_layers=2, dropout=0.3,
+                loss="mean_absolute_error", optimizer="rmsprop", bidirectional=False, epochs=25, batch_size=32):
+    """
+    :param x_train: passed in from DataFrame, used for fitting, added personally
+    :param y_train: passed in from DataFrame, used for fitting, added personally
+    :param sequence_length: copied from P1, determines length of each sequence
+    :param n_features: copied from P1, determines number of features to use
+    :param units: copied from P1, determines dimensionality of cell(s)
+    :param cell: copied from P1, determines cell type (LSTM, RNN, GRU etc)
+    :param n_layers: copied from P1, determines number of layers
+    :param dropout: copied from P1, fraction of inputs to drop in Dropout layer
+    :param loss: copied from P1, determines loss function to use in compile()
+    :param optimizer: copied from P1, determines optimiser function to use in compile()
+    :param bidirectional: copied from P1, boolean, determines if the model is bidirectional
+    :param epochs: copied from previous model code in 0.1, determines how many cycles the fitting goes through
+    :param batch_size: copied from previous model code in 0.1, determines number of samples per cycle for fitting
+    :return:
+    """
+    # automatically initialises the model with a sequential engine.
+    model = Sequential()
+    for i in range(n_layers):
+        if i == 0:
+            # first layer
+            # only runs if it's the first run of the loop
+            # checks if bidirectional is true, if it is, adds a layer of type Bidirectional, if not, adds raw cell
+            # in both cases, passes units arg above into cell units, sets return_sequences to True,
+            # and batch_input_shape to a list of None, arg sequence_length, arg n_features
+            if bidirectional:
+                model.add(Bidirectional(cell(units, return_sequences=True), batch_input_shape=(None, sequence_length, n_features)))
+            else:
+                model.add(cell(units, return_sequences=True, batch_input_shape=(None, sequence_length, n_features)))
+        elif i == n_layers - 1:
+            # last layer
+            # only runs if final run of loop
+            # if bidirectional is true, adds layer of type Bidirectional, if not adds raw cell with only
+            # units arg and setting return_sequences to False
+            if bidirectional:
+                model.add(Bidirectional(cell(units, return_sequences=False)))
+            else:
+                model.add(cell(units, return_sequences=False))
+        else:
+            # hidden layers
+            # runs in-between first and last loop
+            # if bidirectional is true, layer is added of type Bidirectional, otherwise adds raw cell
+            # uses units arg, sets return_sequences to True
+            if bidirectional:
+                model.add(Bidirectional(cell(units, return_sequences=True)))
+            else:
+                model.add(cell(units, return_sequences=True))
+        # add dropout after each layer
+        # Dropout is a layer from the keras package
+        # added after above if-statement
+        model.add(Dropout(dropout))
+    # after loop, adds Dense layer from keras to the model
+    # units represents the dimensionality of the output and can only be a positive integer
+    # activation argument specifies the activation function to use. if none specified, none used.
+    # linear activation is a(x) = x
+    model.add(Dense(1, activation="linear"))
+    # compiles the model using the specified loss and optimiser args from the function call,
+    # and a list of metrics consisting only of "mean_absolute_error". metrics arg MUST be a list
+    model.compile(loss=loss, metrics=["mean_absolute_error"], optimizer=optimizer)
+    # finally, fits the model using x_train and y_train. prevents having to call fit() later
+    model.fit(x_train, y_train, epochs=epochs, batch_size=batch_size)
+    return model
 
 # ------------------------------------------------------------------------------
 # Test the model accuracy on existing data
@@ -449,23 +485,22 @@ def shuffle_in_unison(a, b):
     np.random.set_state(state)
     np.random.shuffle(b)
 
-
 # ------------------------------------------------------------------------------
 # Make predictions on test data
 # ------------------------------------------------------------------------------
-x_test = []
-for x in range(PREDICTION_DAYS, len(model_inputs)):
-    x_test.append(model_inputs[x - PREDICTION_DAYS:x, 0])
-
-x_test = np.array(x_test)
-x_test = np.reshape(x_test, (x_test.shape[0], x_test.shape[1], 1))
+# x_test = []
+# for x in range(PREDICTION_DAYS, len(model_inputs)):
+#     x_test.append(model_inputs[x - PREDICTION_DAYS:x, 0])
+#
+# x_test = np.array(x_test)
+# x_test = np.reshape(x_test, (x_test.shape[0], x_test.shape[1], 1))
 # TO DO: Explain the above 5 lines
 # x-PREDICTION_DAYS:x is used so that x_train is missing 60 days from its dataset which
 # can be used as a timeframe for the model to predict. It appends the entire dataset 
 # multiple times, removing one element until it finally reaches the end of the loop.
 
-predicted_prices = model.predict(x_test)
-predicted_prices = scaler.inverse_transform(predicted_prices)
+# predicted_prices = model.predict(x_test)
+# predicted_prices = scaler.inverse_transform(predicted_prices)
 
 
 # Clearly, as we transform our data into the normalized range (0,1),
@@ -561,23 +596,40 @@ def display_boxplot(df, start_date, end_date):
     plt.show()
 
 
+# task B.2 testing
 task1test = load_data(ticker=COMPANY, split_by_ratio=True)
-print(task1test)
-display_candle_plots(task1test["df"], "2024-01-01", "2024-03-01")
-display_boxplot(task1test["df"], "2024-01-01", "2024-03-01")
+#print(task1test)
+
+# plt.plot(task1test["df"][["adjclose"]], color="black", label=f"Actual {COMPANY} Price")
+# plt.title(f"{COMPANY} Share Price")
+# plt.xlabel("Time")
+# plt.ylabel(f"{COMPANY} Share Price")
+# plt.legend()
+# plt.show()
+
+
+# task B.3 testing
+# display_candle_plots(task1test["df"], "2024-01-01", "2024-03-01")
+# display_boxplot(task1test["df"], "2024-01-01", "2024-03-01")
+
+
+# task B.4 testing
+FEATURE_COLUMNS = ["adjclose", "volume", "open", "high", "low"]
+task4model = create_model(task1test["X_train"], task1test["y_train"], 50, len(FEATURE_COLUMNS), cell=RNN,
+                          n_layers=2, epochs=25, batch_size=16)
 
 # ------------------------------------------------------------------------------
 # Predict next day
 # ------------------------------------------------------------------------------
 
 
-real_data = [model_inputs[len(model_inputs) - PREDICTION_DAYS:, 0]]
-real_data = np.array(real_data)
-real_data = np.reshape(real_data, (real_data.shape[0], real_data.shape[1], 1))
-
-prediction = model.predict(real_data)
-prediction = scaler.inverse_transform(prediction)
-print(f"Prediction: {prediction}")
+# real_data = [model_inputs[len(model_inputs) - PREDICTION_DAYS:, 0]]
+# real_data = np.array(real_data)
+# real_data = np.reshape(real_data, (real_data.shape[0], real_data.shape[1], 1))
+#
+# prediction = model.predict(real_data)
+# prediction = scaler.inverse_transform(prediction)
+# print(f"Prediction: {prediction}")
 
 # A few concluding remarks here:
 # 1. The predictor is quite bad, especially if you look at the next day 
