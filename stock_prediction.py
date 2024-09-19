@@ -521,7 +521,7 @@ def shuffle_in_unison(a, b):
 # plt.legend()
 # plt.show()
 
-# task 2
+# task B.3
 # candle stick charts
 def display_candle_plots(df, start_date, end_date):
     # ensure df is a dataframe
@@ -565,7 +565,7 @@ def display_candle_plots(df, start_date, end_date):
         plots can be saved with the savefig argument by passing in a filename. Ex "cba_2023_2024.png"
     """
 
-
+# boxplot charts
 def display_boxplot(df, start_date, end_date):
     # ensure df is a dataframe
     assert isinstance(df, pd.DataFrame), "df is not DataFrame"
@@ -615,7 +615,7 @@ task1test = load_data(ticker=COMPANY, split_by_ratio=True)
 
 # task B.4 testing
 FEATURE_COLUMNS = ["adjclose", "volume", "open", "high", "low"]
-task4model = create_model(task1test["X_train"], task1test["y_train"], 50, len(FEATURE_COLUMNS), cell=RNN,
+task4model = create_model(task1test["X_train"], task1test["y_train"], 50, len(FEATURE_COLUMNS), cell=GRU,
                           n_layers=2, epochs=25, batch_size=16)
 
 # ------------------------------------------------------------------------------
@@ -630,6 +630,21 @@ task4model = create_model(task1test["X_train"], task1test["y_train"], 50, len(FE
 # prediction = model.predict(real_data)
 # prediction = scaler.inverse_transform(prediction)
 # print(f"Prediction: {prediction}")
+
+# task B.5
+def predict(model, data, n_steps, scale):
+    # retrieve the last sequence from data
+    last_sequence = data["last_sequence"][-n_steps:]
+    # expand dimension
+    last_sequence = np.expand_dims(last_sequence, axis=0)
+    # get the prediction (scaled from 0 to 1)
+    prediction = model.predict(last_sequence)
+    # get the price (by inverting the scaling)
+    if scale:
+        predicted_price = data["column_scaler"]["adjclose"].inverse_transform(prediction)[0][0]
+    else:
+        predicted_price = prediction[0][0]
+    return predicted_price
 
 # A few concluding remarks here:
 # 1. The predictor is quite bad, especially if you look at the next day 
