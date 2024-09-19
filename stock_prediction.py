@@ -565,6 +565,7 @@ def display_candle_plots(df, start_date, end_date):
         plots can be saved with the savefig argument by passing in a filename. Ex "cba_2023_2024.png"
     """
 
+
 # boxplot charts
 def display_boxplot(df, start_date, end_date):
     # ensure df is a dataframe
@@ -645,6 +646,10 @@ def predict(model, data, n_steps, scale):
     else:
         predicted_price = prediction[0][0]
     return predicted_price
+
+
+task5prediction = predict(task4model, task1test, 50, True)
+print(f"Prediction: {task5prediction}")
 
 # A few concluding remarks here:
 # 1. The predictor is quite bad, especially if you look at the next day 
