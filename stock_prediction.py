@@ -598,7 +598,9 @@ def display_boxplot(df, start_date, end_date):
 
 
 # task B.2 testing
-task1test = load_data(ticker=COMPANY, split_by_ratio=True)
+# added lookup assignment to keep consistent with task B.4
+lookup = 10
+task1test = load_data(ticker=COMPANY, split_by_ratio=True, lookup_steps=lookup)
 #print(task1test)
 
 # plt.plot(task1test["df"][["adjclose"]], color="black", label=f"Actual {COMPANY} Price")
@@ -633,22 +635,36 @@ task4model = create_model(task1test["X_train"], task1test["y_train"], 50, len(FE
 # print(f"Prediction: {prediction}")
 
 # task B.5
-def predict(model, data, n_steps, scale):
-    # retrieve the last sequence from data
-    last_sequence = data["last_sequence"][-n_steps:]
-    # expand dimension
-    last_sequence = np.expand_dims(last_sequence, axis=0)
-    # get the prediction (scaled from 0 to 1)
-    prediction = model.predict(last_sequence)
-    # get the price (by inverting the scaling)
-    if scale:
-        predicted_price = data["column_scaler"]["adjclose"].inverse_transform(prediction)[0][0]
-    else:
-        predicted_price = prediction[0][0]
+def predict(model, data, lookup=1, scale=True):
+    # absolute schizo idea, may or may not work/be stupid
+    # "sequence" implies the need to print multiple days worth of predictions.
+    # default method assumes prediction day is equivalent to the value "lookup_steps" when creating the dataset
+    # ONLY prints that one value
+    # assumption is that a while loop using the value of lookup will be able to display multiple prediction days
+    predicted_price = []
+    i = 0
+    while i < lookup:
+        # retrieve the last sequence from data
+        last_sequence = data["last_sequence"][i:-(lookup-i)]
+        # expand dimension
+        last_sequence = np.expand_dims(last_sequence, axis=0)
+        # get the prediction (scaled from 0 to 1)
+        prediction = model.predict(last_sequence)
+        # get the price (by inverting the scaling)
+        if scale:
+            #predicted_price = data["column_scaler"]["adjclose"].inverse_transform(prediction)[0][0]
+            predicted_price.append(data["column_scaler"]["adjclose"].inverse_transform(prediction)[0][0])
+        else:
+            #predicted_price = prediction[0][0]
+            predicted_price.append(prediction[0][0])
+        i = i+1
     return predicted_price
 
-
-task5prediction = predict(task4model, task1test, 50, True)
+# note: lookup_steps in downloaded data dictates how far ahead the prediction can go.
+# if lookup_steps is 1, it can only ever look at the next day.
+# either a method needs to be found to remedy this, or the number of days to predict and
+# lookup_steps must be kept consistent
+task5prediction = predict(task4model, task1test, lookup, True)
 print(f"Prediction: {task5prediction}")
 
 # A few concluding remarks here:
