@@ -635,12 +635,15 @@ task4model = create_model(task1test["X_train"], task1test["y_train"], 50, len(FE
 # print(f"Prediction: {prediction}")
 
 # task B.5
-def predict(model, data, lookup=1, scale=True):
+def predict(model, data, lookup=1, scale=True, feature="adjclose"):
     # absolute schizo idea, may or may not work/be stupid
     # "sequence" implies the need to print multiple days worth of predictions.
     # default method assumes prediction day is equivalent to the value "lookup_steps" when creating the dataset
     # ONLY prints that one value
     # assumption is that a while loop using the value of lookup will be able to display multiple prediction days
+
+    assert feature == "adjclose" or feature == "open" or feature == "high" or feature == "low" or feature == "volume"
+
     predicted_price = []
     i = 0
     while i < lookup:
@@ -653,19 +656,21 @@ def predict(model, data, lookup=1, scale=True):
         # get the price (by inverting the scaling)
         if scale:
             #predicted_price = data["column_scaler"]["adjclose"].inverse_transform(prediction)[0][0]
-            predicted_price.append(data["column_scaler"]["adjclose"].inverse_transform(prediction)[0][0])
+            predicted_price.append(data["column_scaler"][feature].inverse_transform(prediction)[0][0])
         else:
             #predicted_price = prediction[0][0]
             predicted_price.append(prediction[0][0])
         i = i+1
     return predicted_price
 
+
 # note: lookup_steps in downloaded data dictates how far ahead the prediction can go.
 # if lookup_steps is 1, it can only ever look at the next day.
 # either a method needs to be found to remedy this, or the number of days to predict and
 # lookup_steps must be kept consistent
-task5prediction = predict(task4model, task1test, lookup, True)
-print(f"Prediction: {task5prediction}")
+feature = "high"
+task5prediction = predict(task4model, task1test, lookup, True, feature)
+print(f"Predictions over {lookup} days of {feature} feature: {task5prediction}")
 
 # A few concluding remarks here:
 # 1. The predictor is quite bad, especially if you look at the next day 
