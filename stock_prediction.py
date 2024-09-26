@@ -635,14 +635,18 @@ task4model = create_model(task1test["X_train"], task1test["y_train"], 50, len(FE
 # print(f"Prediction: {prediction}")
 
 # task B.5
-def predict(model, data, lookup=1, scale=True, feature="adjclose"):
+def predict(model, data, lookup=1, scale=True, feature=['adjclose', 'volume', 'open', 'high', 'low']):
     # absolute schizo idea, may or may not work/be stupid
     # "sequence" implies the need to print multiple days worth of predictions.
     # default method assumes prediction day is equivalent to the value "lookup_steps" when creating the dataset
     # ONLY prints that one value
     # assumption is that a while loop using the value of lookup will be able to display multiple prediction days
 
-    assert feature == "adjclose" or feature == "open" or feature == "high" or feature == "low" or feature == "volume"
+    # talk with tutor; pass in multiple columns
+    # find a way to add multiple feature columns in one prediction
+    # https://unit8co.github.io/darts/examples/16-hierarchical-reconciliation.html
+    for col in feature:
+        assert col == "adjclose" or col == "open" or col == "high" or col == "low" or col == "volume" or col == "close"
 
     predicted_price = []
     i = 0
