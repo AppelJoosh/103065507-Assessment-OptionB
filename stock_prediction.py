@@ -648,8 +648,11 @@ def predict(model, data, lookup=1, scale=True, feature=['adjclose', 'volume', 'o
     for col in feature:
         assert col == "adjclose" or col == "open" or col == "high" or col == "low" or col == "volume" or col == "close"
 
-    predicted_price = []
+    predicted_price = {}
     i = 0
+    for col in feature:
+        predicted_price[col] = []
+
     while i < lookup:
         # retrieve the last sequence from data
         last_sequence = data["last_sequence"][i:-(lookup-i)]
@@ -658,12 +661,13 @@ def predict(model, data, lookup=1, scale=True, feature=['adjclose', 'volume', 'o
         # get the prediction (scaled from 0 to 1)
         prediction = model.predict(last_sequence)
         # get the price (by inverting the scaling)
-        if scale:
-            #predicted_price = data["column_scaler"]["adjclose"].inverse_transform(prediction)[0][0]
-            predicted_price.append(data["column_scaler"][feature].inverse_transform(prediction)[0][0])
-        else:
-            #predicted_price = prediction[0][0]
-            predicted_price.append(prediction[0][0])
+        for col in feature:
+            if scale:
+                #predicted_price = data["column_scaler"]["adjclose"].inverse_transform(prediction)[0][0]
+                predicted_price[col].append(data["column_scaler"][col].inverse_transform(prediction)[0][0])
+            else:
+                #predicted_price = prediction[0][0]
+                predicted_price[col].append(prediction[0][0])
         i = i+1
     return predicted_price
 
@@ -673,7 +677,7 @@ def predict(model, data, lookup=1, scale=True, feature=['adjclose', 'volume', 'o
 # either a method needs to be found to remedy this, or the number of days to predict and
 # lookup_steps must be kept consistent
 feature = "high"
-task5prediction = predict(task4model, task1test, lookup, True, feature)
+task5prediction = predict(task4model, task1test, lookup, True, FEATURE_COLUMNS)
 print(f"Predictions over {lookup} days of {feature} feature: {task5prediction}")
 
 # A few concluding remarks here:
@@ -690,3 +694,6 @@ print(f"Predictions over {lookup} days of {feature} feature: {task5prediction}")
 # the stock price:
 # https://github.com/jason887/Using-Deep-Learning-Neural-Networks-and-Candlestick-Chart-Representation-to-Predict-Stock-Market
 # Can you combine these different techniques for a better prediction??
+
+# Task B.6
+
