@@ -41,6 +41,15 @@ import talib
 import mplfinance as fplt
 import plotly
 
+#task B.6 imports
+from pandas.plotting import autocorrelation_plot
+from sklearn.ensemble import RandomForestRegressor
+import xgboost as xgb
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error
+from statsmodels.tsa.arima.model import ARIMA
+from statsmodels.tsa.statespace.sarimax import SARIMAX
+import statsmodels.api as sm
 
 # ------------------------------------------------------------------------------
 # Load Data
@@ -112,7 +121,9 @@ x_train, y_train = np.array(x_train), np.array(y_train)
 # and q = PREDICTION_DAYS; while y_train is a 1D array(p)
 
 x_train = np.reshape(x_train, (x_train.shape[0], x_train.shape[1], 1))
-# We now reshape x_train into a 3D array(p, q, 1); Note that x_train 
+
+
+# We now reshape x_train into a 3D array(p, q, 1); Note that x_train
 # is an array of p inputs with each input being a 2D array 
 
 # ------------------------------------------------------------------------------
@@ -198,7 +209,7 @@ x_train = np.reshape(x_train, (x_train.shape[0], x_train.shape[1], 1))
 # task B.4
 # code copied from P1
 def create_model(x_train, y_train, sequence_length, n_features, units=256, cell=LSTM, n_layers=2, dropout=0.3,
-                loss="mean_absolute_error", optimizer="rmsprop", bidirectional=False, epochs=25, batch_size=32):
+                 loss="mean_absolute_error", optimizer="rmsprop", bidirectional=False, epochs=25, batch_size=32):
     """
     :param x_train: passed in from DataFrame, used for fitting, added personally
     :param y_train: passed in from DataFrame, used for fitting, added personally
@@ -225,7 +236,8 @@ def create_model(x_train, y_train, sequence_length, n_features, units=256, cell=
             # in both cases, passes units arg above into cell units, sets return_sequences to True,
             # and batch_input_shape to a list of None, arg sequence_length, arg n_features
             if bidirectional:
-                model.add(Bidirectional(cell(units, return_sequences=True), batch_input_shape=(None, sequence_length, n_features)))
+                model.add(Bidirectional(cell(units, return_sequences=True),
+                                        batch_input_shape=(None, sequence_length, n_features)))
             else:
                 model.add(cell(units, return_sequences=True, batch_input_shape=(None, sequence_length, n_features)))
         elif i == n_layers - 1:
@@ -261,6 +273,7 @@ def create_model(x_train, y_train, sequence_length, n_features, units=256, cell=
     # finally, fits the model using x_train and y_train. prevents having to call fit() later
     model.fit(x_train, y_train, epochs=epochs, batch_size=batch_size)
     return model
+
 
 # ------------------------------------------------------------------------------
 # Test the model accuracy on existing data
@@ -448,8 +461,8 @@ def load_data(ticker, ds_start="2023-08-02", ds_end="2024-07-02", steps=50, scal
         X = pd.DataFrame(X)
         y = pd.DataFrame(y)
         # split the dataset by a ratio
-        result["X_train"] = X.sample(frac=1-test_size, random_state=40)
-        result["y_train"] = y.sample(frac=1-test_size, random_state=40)
+        result["X_train"] = X.sample(frac=1 - test_size, random_state=40)
+        result["y_train"] = y.sample(frac=1 - test_size, random_state=40)
         result["X_test"] = X.drop(result["X_train"].index)
         result["y_test"] = y.drop(result["y_train"].index)
         if shuffle:
@@ -484,6 +497,7 @@ def shuffle_in_unison(a, b):
     np.random.shuffle(a)
     np.random.set_state(state)
     np.random.shuffle(b)
+
 
 # ------------------------------------------------------------------------------
 # Make predictions on test data
@@ -618,8 +632,9 @@ task1test = load_data(ticker=COMPANY, split_by_ratio=True, lookup_steps=lookup)
 
 # task B.4 testing
 FEATURE_COLUMNS = ["adjclose", "volume", "open", "high", "low"]
-task4model = create_model(task1test["X_train"], task1test["y_train"], 50, len(FEATURE_COLUMNS), cell=GRU,
-                          n_layers=2, epochs=25, batch_size=16)
+# task4model = create_model(task1test["X_train"], task1test["y_train"], 50, len(FEATURE_COLUMNS), cell=GRU,
+#                           n_layers=2, epochs=25, batch_size=16)
+
 
 # ------------------------------------------------------------------------------
 # Predict next day
@@ -655,7 +670,7 @@ def predict(model, data, lookup=1, scale=True, feature=['adjclose', 'volume', 'o
 
     while i < lookup:
         # retrieve the last sequence from data
-        last_sequence = data["last_sequence"][i:-(lookup-i)]
+        last_sequence = data["last_sequence"][i:-(lookup - i)]
         # expand dimension
         last_sequence = np.expand_dims(last_sequence, axis=0)
         # get the prediction (scaled from 0 to 1)
@@ -668,7 +683,7 @@ def predict(model, data, lookup=1, scale=True, feature=['adjclose', 'volume', 'o
             else:
                 #predicted_price = prediction[0][0]
                 predicted_price[col].append(prediction[0][0])
-        i = i+1
+        i = i + 1
     return predicted_price
 
 
@@ -676,9 +691,9 @@ def predict(model, data, lookup=1, scale=True, feature=['adjclose', 'volume', 'o
 # if lookup_steps is 1, it can only ever look at the next day.
 # either a method needs to be found to remedy this, or the number of days to predict and
 # lookup_steps must be kept consistent
-feature = "high"
-task5prediction = predict(task4model, task1test, lookup, True, FEATURE_COLUMNS)
-print(f"Predictions over {lookup} days of {feature} feature: {task5prediction}")
+# feature = "high"
+# task5prediction = predict(task4model, task1test, lookup, True, FEATURE_COLUMNS)
+# print(f"Predictions over {lookup} days of {feature} feature: {task5prediction}")
 
 # A few concluding remarks here:
 # 1. The predictor is quite bad, especially if you look at the next day 
@@ -696,4 +711,106 @@ print(f"Predictions over {lookup} days of {feature} feature: {task5prediction}")
 # Can you combine these different techniques for a better prediction??
 
 # Task B.6
+def ensemble_model(data, model1_type=LSTM, model2_type="linreg"):
+
+    # load data from data
+    X_train = data['X_train']
+    X_test = data['X_test']
+    y_train = data['y_train']
+    y_test = data['y_test']
+
+    # create two-dimensional arrays for model2
+    d2_X_train = X_train.reshape(len(X_train), 50*5)
+    d2_X_test = X_test.reshape(len(X_test), 50*5)
+
+    # flatten data for arima/sarimax
+    flat_X_train = d2_X_train.flatten()
+
+    # load model if passed in, otherwise create new model with cell type
+    if isinstance(model1_type, Sequential):
+        model1 = model1_type
+    else:
+        model1 = create_model(X_train, y_train, 50, len(FEATURE_COLUMNS),
+                              cell=model1_type, n_layers=2, epochs=25, batch_size=16)
+
+    pred1 = model1.predict(X_test)
+
+    # determine model type for second model
+    # added fits to each elif, because SARIMAX and ARIMA fit in different ways
+    if isinstance(model2_type, str):
+        if model2_type.lower() == "linreg":
+            model2 = LinearRegression()
+            # fit model2
+            model2.fit(d2_X_train, y_train)
+            # predict
+            pred2 = model2.predict(d2_X_test)
+
+        elif model2_type.lower() == "xgb":
+            model2 = xgb.XGBRegressor()
+            # fit model2
+            model2.fit(d2_X_train, y_train)
+            # predict
+            pred2 = model2.predict(d2_X_test)
+
+        elif model2_type.lower() == "forest":
+            model2 = RandomForestRegressor()
+            # fit model2
+            model2.fit(d2_X_train, y_train)
+            # predict
+            pred2 = model2.predict(d2_X_test)
+
+        elif model2_type.lower() == "arima":
+            # create arima model with data
+            arima_model = ARIMA(flat_X_train, order=(1,1,2))
+            # assign model2 with fitted arima model
+            model2 = arima_model.fit()
+            # predict
+            pred2 = model2.forecast(steps=1)
+
+        elif model2_type.lower() == "sarimax":
+            # create sarimax model with data
+            sarimax_model = SARIMAX(flat_X_train, order=(1,1,2))
+            # assign model2 with fitted sarimax model
+            model2 = sarimax_model.fit(disp=False)
+            # predict
+            pred2 = model2.forecast(steps=1)
+
+        else:
+            model2 = LinearRegression()
+            # fit model2
+            model2.fit(d2_X_train, y_train)
+            # predict
+            pred2 = model2.predict(d2_X_test)
+    elif isinstance(model2_type, (LinearRegression, xgb.XGBRegressor, RandomForestRegressor)):
+        model2 = model2_type
+        # fit model2
+        model2.fit(d2_X_train, y_train)
+        # predict
+        pred2 = model2.predict(d2_X_test)
+    elif isinstance(model2_type, (ARIMA, SARIMAX)):
+        # assign model2 with fitted passed-in model
+        model2 = model2_type.fit(disp=False)
+        # predict
+        pred2 = model2.forecast(steps=1)
+    else:
+        raise TypeError("model2_type must be string or LinearRegression, XGBRegressor, RandomForestRegressor, ARIMA, SARIMAX")
+
+    # # fit model2
+    # model2.fit(d2_X_train, y_train)
+
+    # # predict outputs
+    # pred1 = model1.predict(X_test)
+    # pred2 = model2.predict(d2_X_test)
+
+    # flatten pred1 cuz it's weird
+    pred1 = pred1.flatten()
+
+    # final prediction, average for two models
+    finalpred = (pred1 + pred2) / 2.0
+
+    print(mean_squared_error(y_test, finalpred))
+
+
+ensemble_model(task1test, model2_type=LinearRegression())
+
 

@@ -11,3 +11,7 @@ yfinance
 ta-lib==0.4.29
 mplfinance
 plotly
+
+# ensemble models
+xgboost
+statsmodels
