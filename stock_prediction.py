@@ -811,6 +811,6 @@ def ensemble_model(data, model1_type=LSTM, model2_type="linreg"):
     print(mean_squared_error(y_test, finalpred))
 
 
-ensemble_model(task1test, model2_type=LinearRegression())
+ensemble_model(task1test, model1_type=RNN, model2_type="sarimax")
 
 
