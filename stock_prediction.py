@@ -632,8 +632,8 @@ task1test = load_data(ticker=COMPANY, split_by_ratio=True, lookup_steps=lookup)
 
 # task B.4 testing
 FEATURE_COLUMNS = ["adjclose", "volume", "open", "high", "low"]
-# task4model = create_model(task1test["X_train"], task1test["y_train"], 50, len(FEATURE_COLUMNS), cell=GRU,
-#                           n_layers=2, epochs=25, batch_size=16)
+task4model = create_model(task1test["X_train"], task1test["y_train"], 50, len(FEATURE_COLUMNS), cell=GRU,
+                          n_layers=2, epochs=25, batch_size=16)
 
 
 # ------------------------------------------------------------------------------
@@ -650,7 +650,54 @@ FEATURE_COLUMNS = ["adjclose", "volume", "open", "high", "low"]
 # print(f"Prediction: {prediction}")
 
 # task B.5
-def predict(model, data, lookup=1, scale=True, feature=['adjclose', 'volume', 'open', 'high', 'low']):
+def multistep_predict(model, data, lookup=1, scale=True):
+    predicted_price = []
+    i = 0
+
+    while i < lookup:
+        # retrieve the last sequence from data
+        last_sequence = data["last_sequence"][i:-(lookup - i)]
+        # expand dimension
+        last_sequence = np.expand_dims(last_sequence, axis=0)
+        # get the prediction (scaled from 0 to 1)
+        prediction = model.predict(last_sequence)
+        # get the price (by inverting the scaling)
+        if scale:
+            # predicted_price = data["column_scaler"]["adjclose"].inverse_transform(prediction)[0][0]
+            predicted_price.append(data["column_scaler"]["adjclose"].inverse_transform(prediction)[0][0])
+        else:
+            # predicted_price = prediction[0][0]
+            predicted_price.append(prediction[0][0])
+        i = i + 1
+    return predicted_price
+
+def multivariate_predict(model, data, n_steps=50, scale=True, feature=['adjclose', 'volume', 'open', 'high', 'low']):
+    for col in feature:
+        assert col == "adjclose" or col == "open" or col == "high" or col == "low" or col == "volume"
+
+    predicted_price = {}
+    i = 0
+    for col in feature:
+        predicted_price[col] = []
+
+    # retrieve the last sequence from data
+    last_sequence = data["last_sequence"][-n_steps:]
+    # expand dimension
+    last_sequence = np.expand_dims(last_sequence, axis=0)
+    # get the prediction (scaled from 0 to 1)
+    prediction = model.predict(last_sequence)
+    # get the price (by inverting the scaling)
+    for col in feature:
+        if scale:
+            #predicted_price = data["column_scaler"]["adjclose"].inverse_transform(prediction)[0][0]
+            predicted_price[col].append(data["column_scaler"][col].inverse_transform(prediction)[0][0])
+        else:
+            #predicted_price = prediction[0][0]
+            predicted_price[col].append(prediction[0][0])
+
+    return predicted_price
+
+def comb_predict(model, data, lookup=1, scale=True, feature=['adjclose', 'volume', 'open', 'high', 'low']):
     # absolute schizo idea, may or may not work/be stupid
     # "sequence" implies the need to print multiple days worth of predictions.
     # default method assumes prediction day is equivalent to the value "lookup_steps" when creating the dataset
@@ -692,8 +739,12 @@ def predict(model, data, lookup=1, scale=True, feature=['adjclose', 'volume', 'o
 # either a method needs to be found to remedy this, or the number of days to predict and
 # lookup_steps must be kept consistent
 # feature = "high"
-# task5prediction = predict(task4model, task1test, lookup, True, FEATURE_COLUMNS)
-# print(f"Predictions over {lookup} days of {feature} feature: {task5prediction}")
+# task5prediction = multistep_predict(task4model, task1test, lookup, True)
+task5prediction = multivariate_predict(task4model, task1test, 50, False, FEATURE_COLUMNS)
+# task5prediction = comb_predict(task4model, task1test, lookup, True, FEATURE_COLUMNS)
+# print(f"Predictions over {lookup} days: {task5prediction}")
+print(f"Predictions of {FEATURE_COLUMNS} feature: {task5prediction}")
+# print(f"Predictions over {lookup} days of {FEATURE_COLUMNS} feature: {task5prediction}")
 
 # A few concluding remarks here:
 # 1. The predictor is quite bad, especially if you look at the next day 
@@ -765,7 +816,7 @@ def ensemble_model(data, model1_type=LSTM, model2_type="linreg"):
             # assign model2 with fitted arima model
             model2 = arima_model.fit()
             # predict
-            pred2 = model2.forecast(steps=1)
+            pred2 = model2.forecast(steps=35)
 
         elif model2_type.lower() == "sarimax":
             # create sarimax model with data
@@ -773,7 +824,7 @@ def ensemble_model(data, model1_type=LSTM, model2_type="linreg"):
             # assign model2 with fitted sarimax model
             model2 = sarimax_model.fit(disp=False)
             # predict
-            pred2 = model2.forecast(steps=1)
+            pred2 = model2.forecast(steps=35)
 
         else:
             model2 = LinearRegression()
@@ -791,7 +842,7 @@ def ensemble_model(data, model1_type=LSTM, model2_type="linreg"):
         # assign model2 with fitted passed-in model
         model2 = model2_type.fit(disp=False)
         # predict
-        pred2 = model2.forecast(steps=1)
+        pred2 = model2.forecast(steps=35)
     else:
         raise TypeError("model2_type must be string or LinearRegression, XGBRegressor, RandomForestRegressor, ARIMA, SARIMAX")
 
@@ -809,8 +860,16 @@ def ensemble_model(data, model1_type=LSTM, model2_type="linreg"):
     finalpred = (pred1 + pred2) / 2.0
 
     print(mean_squared_error(y_test, finalpred))
+    # fig = plt.figure()
+    # ax1 = fig.add_subplot(121)
+    # ax2 = fig.add_subplot(122)
+    #plt.scatter(np.arange(len(y_test)), y_test, color='g')
+    plt.plot(y_test, pred1, color='b', label="Model 1")
+    plt.plot(y_test, pred2, color='y', label="Model 2")
+    plt.plot(y_test, finalpred, color='r', label="Combined model")
+    plt.show()
 
 
-ensemble_model(task1test, model1_type=RNN, model2_type="sarimax")
+# ensemble_model(task1test, model1_type=RNN, model2_type="linreg")
 
 
